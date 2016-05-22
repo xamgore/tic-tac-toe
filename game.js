@@ -1,185 +1,153 @@
-var ctx = $('#canvas')[0].getContext('2d');
+'use strict';
 
-function Grid() {
-    this._positions = [];
-    this._moveCount = 0;
-    this.draw();
+let players = 3, cell_count = 4, winCount = 4,
+    cell_size = 100, size = cell_size * cell_count,
+    canvas = $('#canvas').attr({ width: size, height: size }),
+    ctx = canvas[0].getContext('2d');
+
+ctx.imageSmoothingEnabled = false;
+ctx.lineWidth = 3;
+
+
+function clear() {
+    ctx.clearRect(0, 0, canvas.width(), canvas.height());
 }
 
-(function(Grid) {
-    Math.TWO_PI = Math.PI * 2;
-    ctx.lineWidth = 5;
+function line(x, y, w, h, color = '#ccc') {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.closePath();
+}
 
-    Grid.p = Grid.prototype;
-    
-    Grid.p.draw = function() {
-        var i = 0, x, y, pos;
+function fillRect(i, j, color = '#F5F5F5') {
+    ctx.fillStyle = color;
+    ctx.fillRect(i * cell_size, j * cell_size, cell_size, cell_size);
+}
+
+var draw = {
+    grid: (color = '#ccc') => {
+        for (let i = 1; i < cell_count; i++) {
+            line(cell_size * i, 0, 0, size, color);
+            line(0, cell_size * i, size, 0, color);
+        }
+    },
+
+    // draw nothing, stub
+    0: (i, j, _) => {},
+
+    // draw X figure
+    1: (i, j, color = '#3F51B5') => {
+        let left = (i + 0.1) * cell_size,
+            top = (j + 0.1) * cell_size,
+            size = 0.8 * cell_size;
+
+        line(left, top, size, size, color);
+        line(left + size, top, -size, size, color);
+    },
+
+    // draw O figure
+    2: (i, j, color = '#FF5722') => {
         ctx.beginPath();
-        for (; i < 2; i++) {
-            x = 100 + 100*i;
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, 300);
-        }
-        for (i = 0; i < 2; i++) {
-    
-            y = 100 + 100*i;
-            ctx.moveTo(0, y);
-            ctx.lineTo(300, y);
-        }
-        
-        ctx.strokeStyle = '#000000';
+        ctx.arc((i + 0.5) * cell_size, (j + 0.5) * cell_size, 0.4 * cell_size, 0, Math.PI * 2, false);
+        ctx.strokeStyle = color;
         ctx.stroke();
         ctx.closePath();
-        
-        pos = this._positions;
-        for (i = 0; i < 9; i ++) {
-            x = i % 3 | 0;
-            y = i / 3 | 0;
-            if (pos[i] === 'x') {
-                drawX(x, y);
-            } else if (pos[i] === 'o') {
-                drawO(x, y);
+    },
+
+    // draw Δ figure
+    3: (i, j, color = '#FDE619'/*'#FFEB3B'*/) => {
+        let center = (i + 0.5) * cell_size,
+            size = Math.sqrt(3) * 0.525 * cell_size,
+            top = (j + 0.125) * cell_size,
+            height = 0.75 * cell_size,
+            step = size / 2;
+
+        line(center, top, -step, height, color);
+        line(center, top, step, height, color);
+        line(center - step, top + height, size, 0, color);
+    }
+};
+
+
+let grid = new Array(cell_count * cell_count).fill(0),
+
+    get = (i, j) => grid[j * cell_count + i],
+    set = (i, j, val = 0) => grid[j * cell_count + i] = val,
+    isFree = (i, j) => get(i, j) == 0,
+
+    checkVictory = (who) => {
+        let iterate = getter => {
+            for (let i = 0; i < winCount; i++)
+                if (getter(i) != who)
+                    return false;
+            return true;
+        };
+
+        let row, col, path = {
+            vertical: _ => iterate(i => get(row + i, col)),
+            horizntl: _ => iterate(j => get(col, row + j)),
+            diagonal: _ => iterate(i => get(row + i, col + i)),
+            opposite: _ => iterate(i => get(row + i, col + winCount - 1 - i)),
+        };
+
+        for (row = 0; row <= cell_count - winCount; row++) {
+            for (col = 0; col < cell_count; col++) {
+                if (path.vertical()) return ['vertical', row, col];
+                if (path.horizntl()) return ['horizntl', col, row];
+            }
+
+            for (col = 0; col <= cell_count - winCount; col++) {
+                if (path.diagonal()) return ['diagonal', row, col];
+                if (path.opposite()) return ['opposite', row, col];
             }
         }
-    };
-    
-    Grid.p.markCellWithX = function(x, y) {
-        this._positions[(y * 3) + x] = 'x';
-        this._moveCount++;
 
-        if (this._checkVictory(x, y, 'x')) {
-          this.currentState = 'x victory'
-        } else if (this._checkDraw()) {
-          this.currentState = 'draw';
+        return [];
+    },
+
+    onWin = ([type, row, col]) => {
+        if (!type) return;
+
+        let iterate = action => {
+            for (let i = 0; i < winCount; i++) action(i);
+        };
+
+        let drawSequence = {
+            vertical: _ => iterate(i => fillRect(row + i, col)),
+            horizntl: _ => iterate(j => fillRect(row, col + j)),
+            diagonal: _ => iterate(i => fillRect(row + i, col + i)),
+            opposite: _ => iterate(i => fillRect(row + i, col + winCount - 1 - i)),
+        };
+
+        clear();
+        drawSequence[type]();
+        draw.grid();
+        
+        for (let i = 0; i < cell_count; i++) {
+            for (let j = 0; j < cell_count; j++)
+                draw[get(i, j)](i, j);
         }
-        this.draw();
-    };
-    
-    Grid.p.markCellWithO = function(x, y) {
-        this._positions[(y * 3) + x] = 'o';
-        this._moveCount++;
-
-        if (this._checkVictory(x, y, 'o')) {
-          this.currentState = 'o victory'
-        } else if (this._checkDraw()) {
-          this.currentState = 'draw';
-        }
-
-        this.draw();
-    };
-    
-    Grid.p.isMarkedCell = function(x, y) {
-        return typeof this._positions[(y * 3) + x] !== 'undefined';
+        
+        return true;
     };
 
-    Grid.p.isMarkedCellWith = function(x, y, symbol) {
-        return this._positions[(y * 3) + x] === symbol;
-    };
-    
-    /**
-    by Hardwareguy 
-    http://stackoverflow.com/a/1056352
-    */
-    Grid.p._checkVictory = function(x, y, symbol) {
-      var i;
 
-      //check victory conditions
-      //check col
-      for(i = 0; i < 3; i++) {
-        if(!this.isMarkedCellWith(x, i, symbol)) break;
-        if(i == 2) return true;
-      }
+let playerTurn = 0;
 
-      //check row
-      for(i = 0; i < 3; i++) {
-        if(!this.isMarkedCellWith(i, y, symbol)) break;
-        if(i == 2) return true;
-      }
+canvas.click(e => {
+    let i = e.offsetX / cell_size | 0,
+        j = e.offsetY / cell_size | 0;
 
-      //check diag
-      if(x == y){
-        //we're on a diagonal
-        for(i = 0; i < 3; i++) {
-          if(!this.isMarkedCellWith(i, i, symbol)) break;
-          if(i == 2) return true;
-        }
-      }
+    if (isFree(i, j)) {
+        let figure = playerTurn++ % players + 1;
 
-      //check anti diag (thanks rampion)
-      for(i = 0; i < 3; i++){
-        if(!this.isMarkedCellWith(i, (2 - i), symbol)) break;
-        if(i == 2) return true;
-      }
-
-      return false;
-    };
-
-    Grid.p._checkDraw = function() {
-      return this._moveCount == 9;
-    };
-    
-    function drawX(cellX, cellY) {
-        var i = 0, dx, dy;
-        ctx.beginPath();
-        for (i = 0; i < 2; i++) {
-            dx = (cellX * 100) + 10 + (80*i);
-            dy = (cellY * 100) + 10;
-            ctx.moveTo(dx, dy);
-            dx = (cellX * 100) + 90 - (80*i);
-            dy = (cellY * 100) + 90;
-            ctx.lineTo(dx, dy);
-        }
-        ctx.strokeStyle = '#3333ff';
-        ctx.stroke();
-        ctx.closePath();
+        set(i, j, figure);
+        draw[figure](i, j);
+        onWin(checkVictory(figure)) && canvas.off('click');
     }
-    
-    function drawO (cellX, cellY) {
-        ctx.beginPath();
-        ctx.arc(cellX*100 + 50, 
-                cellY*100 + 50, 
-                40, 0, Math.TWO_PI, false);
-        ctx.strokeStyle = '#ff3333';
-        ctx.stroke();
-        ctx.closePath();
-    }
-})(Grid);
-
-gameGrid = new Grid();
-playerTurn = 0; // player 1 ('X') plays first
-
-$('#canvas').click(function(e) {
-  var x, y;
-  x = e.offsetX / 100 | 0;
-  y = e.offsetY / 100 | 0;
-  //console.log(x, y);
-    
-  if (!gameGrid.isMarkedCell(x, y)) {
-    if (playerTurn === 0) {
-      if (gameGrid.markCellWithX(x, y));
-      playerTurn = 1; // next turn is of player 2 
-    } else {
-      gameGrid.markCellWithO(x, y);
-      playerTurn = 0; // next turn is of player 1
-    }
-
-    if (typeof gameGrid.currentState !== 'undefined') {
-      var msg = $('#game-msg');
-      $('#canvas').off('click');
-
-      if (gameGrid.currentState === 'o victory') {
-        msg
-          .css('color', '#ff3333')
-          .text('RED WINS');
-      } else if (gameGrid.currentState === 'x victory') {
-        msg
-          .css('color', '#3333ff')
-          .text('BLUE WINS');
-      } else if (gameGrid.currentState === 'draw'){
-        msg
-          .css('color', '#333333')
-          .text('DRAW!');
-      }
-    }
-  }
 });
+
+draw.grid();

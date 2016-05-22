@@ -1,22 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tic Tac Toe</title>
-  <style>
-    #game-msg {
-        width: 300px;
-        text-align: center;
-        font-size: 150%
-    }
-  </style>
+    <title>Tic Tac Toe</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        body, html, #game {
+            height: 100%;
+            background: #FCFCFC;
+        }
+
+        #game {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
 </head>
 <body>
-  <div id='game'>
-    <canvas id='canvas' width='300' height='300'></canvas>
-    <div id='game-msg'></div>
-  </div>
-
-  <script src="jquery.min.js"></script>
-  <script src="game.js"></script>
+    <div id="game">
+        <canvas id="canvas" width="300" height="300"></canvas>
+    </div>
+    
+    <script src="jquery-2.2.4.min.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>

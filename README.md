@@ -1,4 +1,5 @@
-html5-tic-tac-toe
-=================
+## html5 tic-tac-toe
 
-###[Demo](http://jsfiddle.net/luizbills/KhpAe/embedded/result/)
+![](http://i.imgur.com/YoPc6GL.png)
+
+Demo: [http://jsfiddle.net/yppc6k4o](http://jsfiddle.net/yppc6k4o/embedded/result/)
