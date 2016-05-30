@@ -125,12 +125,12 @@ let grid = new Array(cell_count * cell_count).fill(0),
         clear();
         drawSequence[type]();
         draw.grid();
-        
+
         for (let i = 0; i < cell_count; i++) {
             for (let j = 0; j < cell_count; j++)
                 draw[get(i, j)](i, j);
         }
-        
+
         return true;
     };
 

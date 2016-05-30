@@ -1,0 +1,32 @@
+{
+  "name": "tic-tac-toe",
+  "version": "1.0.0",
+  "description": "html5 es6 tic-tac-toe game",
+  "main": "index.js",
+  "dependencies": {
+    "engine.io": "^1.6.9",
+    "eureca.io": "^0.6.42",
+    "express": "^4.13.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xamgore/html5-tic-tac-toe.git"
+  },
+  "keywords": [
+    "tic",
+    "tac",
+    "toe",
+    "html5",
+    "es6"
+  ],
+  "author": "xamgore",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/xamgore/html5-tic-tac-toe/issues"
+  },
+  "homepage": "https://github.com/xamgore/html5-tic-tac-toe#readme"
+}
