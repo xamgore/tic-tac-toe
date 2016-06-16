@@ -2,6 +2,3 @@ language: node_js
 node_js:
   - "6"
   - "5"
-env:
-  - TEST_DIR=multi
-script: cd $TEST_DIR && npm install && npm test
