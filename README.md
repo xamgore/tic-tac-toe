@@ -1,4 +1,4 @@
-## html5 tic-tac-toe
+## html5 tic-tac-toe ![](https://travis-ci.org/xamgore/html5-tic-tac-toe.svg?branch=master)
 
 ![](http://i.imgur.com/YoPc6GL.png)
 

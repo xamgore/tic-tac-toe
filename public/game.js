@@ -188,7 +188,7 @@ rpc.ready(server => {
             }
 
             server.makeMove(e.offsetX / cell_size | 0, e.offsetY / cell_size | 0)
-                .onReady(res => console.log(res))
+                .onReady(res => console.log(res));
         });
 
         draw.grid();

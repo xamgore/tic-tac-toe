@@ -30,7 +30,7 @@ function createRoom(cell_count, win_count, max) {
             players:    max,
             turn:       0
         }
-    }
+    };
 }
 
 function deleteRoom(room) {
@@ -60,7 +60,7 @@ function prepareRoomsDataForUser() {
             win:     room.state.win_count,
             size:    room.state.cell_count,
             players: `${room.players.length}/${room.max}`
-        }))
+        }));
 }
 
 
@@ -72,7 +72,7 @@ rpc.onConnect(conn => {
     users[conn.id] = conn;
 
     created_rooms[conn.id] = [createRoom(3, 3, 2), createRoom(5, 4, 2)];
-    if (users_count / 4 >= 1) 
+    if (users_count / 4 >= 1)
         created_rooms[conn.id].push(createRoom(5, 3, 3));
 
     notifyAllAboutRooms();
@@ -96,7 +96,7 @@ rpc.onDisconnect(conn => {
 
 function notifyAllAboutRooms() {
     let rooms = prepareRoomsDataForUser();
-    Object.keys(users).forEach(id => users[id].clientProxy.updateRooms(rooms))
+    Object.keys(users).forEach(id => users[id].clientProxy.updateRooms(rooms));
 }
 
 rpc.exports.notifyAllAboutRooms = notifyAllAboutRooms;
@@ -104,7 +104,7 @@ rpc.exports.notifyAllAboutRooms = notifyAllAboutRooms;
 rpc.exports.getRooms = function() {
     let rooms = prepareRoomsDataForUser();
     this.clientProxy.updateRooms(rooms);
-}
+};
 
 rpc.exports.enterRoom = function (rid) {
     if (!rooms.hasOwnProperty(rid))
@@ -118,7 +118,7 @@ rpc.exports.enterRoom = function (rid) {
     where_is_user[this.socket.id] = rid;
 
     return room.state;
-}
+};
 
 rpc.exports.makeMove = function (i, j) {
     let playerId = this.socket.id,
@@ -176,7 +176,7 @@ rpc.exports.makeMove = function (i, j) {
         created_rooms[room.players[0].socket.id] = another;
         deleteRoom(room);
     }
-}
+};
 
 
 app.get('/', function (req, res, next) { res.sendfile('public/index.html') });
