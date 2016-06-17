@@ -75,7 +75,7 @@ let grid = new Array(cell_count * cell_count).fill(0),
     set = (i, j, val = 0) => grid[j * cell_count + i] = val,
     isFree = (i, j) => get(i, j) === 0;
 
-function drawAll() {
+function drawFigures() {
     for (let i = 0; i < cell_count; i++) {
         for (let j = 0; j < cell_count; j++)
             draw[get(i, j)](i, j);
@@ -139,23 +139,24 @@ function onWin([type, row, col]) {
 }
 
 
-let rpc = new Eureca.Client();
+let server, client = new Eureca.Client();
 
-rpc.ready(server => {
+function listen(s = server) {
+    server = s;
+
     let inGame = false, gameOver = false;
 
-    rpc.exports.updateGrid = (new_grid, figure) => {
+    client.exports.updateGrid = (new_grid, figure) => {
         if (!inGame) return;
 
         grid = new_grid;
 
         clear();
         draw.grid();
-        drawAll();
+        drawFigures();
 
-        if (onWin(checkVictory(figure))) {
+        if (onWin(checkVictory(figure)))
             gameOver = true;
-        }
     };
 
     let startGame = (state) => {
@@ -175,26 +176,22 @@ rpc.ready(server => {
         cell_count = state.cell_count;
         win_count = state.win_count;
         size = cell_size * cell_count;
-        canvas = $('#canvas').attr({ width: size, height: size });
 
-        ctx = canvas[0].getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        ctx.lineWidth = 3;
+        canvas.attr({ width: size, height: size })
+            .click(e => {
+                if (gameOver) {
+                    inGame = false;
+                    return server.getRooms();
+                }
 
-        canvas.click(e => {
-            if (gameOver) {
-                inGame = false;
-                return server.getRooms();
-            }
-
-            server.makeMove(e.offsetX / cell_size | 0, e.offsetY / cell_size | 0)
-                .onReady(res => console.log(res));
-        });
+                server.makeMove(e.offsetX / cell_size | 0, e.offsetY / cell_size | 0)
+                    .onReady(res => console.log(res));
+            });
 
         draw.grid();
     };
 
-    rpc.exports.updateRooms = (rooms, forceUpdate) => {
+    client.exports.updateRooms = (rooms, forceUpdate) => {
         if (inGame && !forceUpdate) return;
 
         if ($('.spinner').length) {
@@ -209,9 +206,17 @@ rpc.ready(server => {
 
         let showInfo = room => `<div><a id="${ room.id }">${ room.players }</a>&nbsp;${ room.name }
                     <span>&nbsp;${room.size}×${room.size}, ${room.win} to win&nbsp;</span></div>`;
+
         $('#menu').html(rooms.map(showInfo).join(''));
 
-        let enterRoom = id => server.enterRoom(id).onReady(startGame);
-        $('#menu div').click(e => enterRoom( $(e.target).children('a').attr('id') ));
+        let enterRoom = id => {
+            console.log(`Trying to enter #${id} room`);
+            server.enterRoom(id).onReady(startGame);
+        };
+
+        $('#menu div').click(e => enterRoom( $(e.currentTarget).children('a').attr('id') ));
     };
-});
+}
+
+client.onConnect(() => listen());
+client.ready(listen);

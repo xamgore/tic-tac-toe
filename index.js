@@ -6,15 +6,19 @@ let express = require('express'), app = express(),
     rpc = new JsonRPC.Server({ allow: ['updateGrid', 'updateRooms'] });
 
 
-let rooms = {}, created_rooms = {}, rooms_count = 0, room_names = [
+let rooms = {}, rooms_count = 0, room_names = [
     'Handshake', 'Null', 'SEGFAULT', 'Trojans', 'Recovery Fail!',
     'Floating Point', 'Panic', 'Logic Bomb', 'Deadlock', 'Rootkit'
-];
+], room_types = {
+    default: { cell_count: 3, win_count: 3, players: 2 },
+    bigger:  { cell_count: 5, win_count: 4, players: 2 },
+    party:   { cell_count: 5, win_count: 3, players: 3 }
+};
 
-function createRoom(cell_count, win_count, max) {
-    cell_count = cell_count || 3;
-    win_count = win_count || 3;
-    max = max || 2;
+let users = {}, where_is_user = {}, users_count = 0, counter = 0; // id, clientProxy
+
+function createRoom(type) {
+    type = type || room_types.default;
 
     let id = rooms_count++;
 
@@ -22,27 +26,37 @@ function createRoom(cell_count, win_count, max) {
         id:      id,
         players: [],
         name:    room_names[counter++ % room_names.length],
-        max:     max,
+        max:     type.players,
+        type:    type,
         state:    {
-            grid:       new Array(cell_count * cell_count).fill(0),
-            cell_count: cell_count,
-            win_count:  win_count,
-            players:    max,
+            grid:       new Array(type.cell_count * type.cell_count).fill(0),
+            cell_count: type.cell_count,
+            win_count:  type.win_count,
+            players:    type.players,
             turn:       0
         }
     };
 }
 
-function deleteRoom(room) {
-    if (!room) return;
+function deleteRoom(id) {
+    if (!id) return;
+
+    let room = rooms[id];
+    console.info(` deleteRoom(#${id}: ${room})`);
 
     let players = room.players;
     rooms[room.id].players = [];
-    delete rooms[room.id];
+    console.info(`  make players leave room`);
 
+    if (players.length > 1) {
+        delete rooms[room.id];
+        console.info(`  delete room`);
+    }
+
+    generateRooms();
     let data = prepareRoomsDataForUser();
 
-    room.players.forEach(p => {
+    players.forEach(p => {
         // notify users to end the game
         p.clientProxy.updateRooms(data, true);
         delete where_is_user[p.socket.id];
@@ -63,34 +77,37 @@ function prepareRoomsDataForUser() {
         }));
 }
 
+function generateRooms() {
+    Object.keys(room_types).forEach(t => createRoom(room_types[t]));
 
+    let empty_rooms = Object.keys(rooms).map(id => rooms[id])
+        .filter(room => room.players.length == 0);
 
-let users = {}, where_is_user = {}, users_count = 0, counter = 0; // id, clientProxy
+    let filter = type => empty_rooms.filter(r => r.type == room_types[type]);
+
+    Object.keys(room_types).map(filter).map(array => {
+        array.shift();
+        array.forEach(r => delete rooms[r.id]);
+    });
+}
+
 
 rpc.onConnect(conn => {
+    console.info(`user "${conn.socket.id}" connected`);
+
     users_count += 1;
     users[conn.id] = conn;
 
-    created_rooms[conn.id] = [createRoom(3, 3, 2), createRoom(5, 4, 2)];
-    if (users_count / 4 >= 1)
-        created_rooms[conn.id].push(createRoom(5, 3, 3));
-
+    generateRooms();
     notifyAllAboutRooms();
 });
 
 rpc.onDisconnect(conn => {
+    console.info(`user "${conn.id}" disconnected`);
     users_count -= 1;
 
-    // delete empty rooms, created by user
-    created_rooms[conn.id].forEach(r => {
-        if (!r.players.length)
-            delete rooms[r.id];
-    });
-
-    delete created_rooms[conn.id];
     delete users[conn.id];
-
-    // notify users to end game
+    console.info(` he was in #${where_is_user[conn.id]} room`);
     deleteRoom(where_is_user[conn.id]);
 });
 
@@ -102,22 +119,34 @@ function notifyAllAboutRooms() {
 rpc.exports.notifyAllAboutRooms = notifyAllAboutRooms;
 
 rpc.exports.getRooms = function() {
+    console.info(`user ${this.socket.id} requested the list of rooms`);
+
     let rooms = prepareRoomsDataForUser();
     this.clientProxy.updateRooms(rooms);
 };
 
 rpc.exports.enterRoom = function (rid) {
-    if (!rooms.hasOwnProperty(rid))
-        return { err: 'room was not found'};
+    console.info(`user "${this.socket.id}" tries to enter #${rid} room`);
+
+    if (!rooms.hasOwnProperty(rid)) {
+        console.error(` room #${rid} was not found`);
+        return { err: `room #${rid} was not found` };
+    }
 
     let room = rooms[rid];
-    if (room.players.length >= room.max)
-        return { err: 'room is busy' };
+    if (room.players.length >= room.max) {
+        console.error(` room #${rid} is busy (max is ${room.max})`);
+        return { err: `room #${rid} is busy (max is ${room.max})` };
+    }
 
     room.players.push(this);
     where_is_user[this.socket.id] = rid;
 
+    console.info(` entered successfully!`);
+    generateRooms();
+
     return room.state;
+    // notify all from the client side
 };
 
 rpc.exports.makeMove = function (i, j) {
@@ -173,7 +202,6 @@ rpc.exports.makeMove = function (i, j) {
     // game is over, delete room
     if (checkVictory(figure)) {
         let another = createRoom(room.cell_count, room.win_count, room.max);
-        created_rooms[room.players[0].socket.id] = another;
         deleteRoom(room);
     }
 };
